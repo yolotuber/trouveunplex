@@ -2,66 +2,103 @@ import { NextResponse } from "next/server";
 import * as XLSX from "xlsx";
 import path from "path";
 
+export const dynamic = "force-dynamic";
+
+function convertirTypeVoie(type: string) {
+  const map: Record<string, string> = {
+    RU: "rue",
+    AV: "avenue",
+    BO: "boulevard",
+    CH: "chemin",
+    PL: "place",
+    CR: "croissant",
+    IM: "impasse",
+    RG: "rang",
+  };
+
+  return map[String(type).trim()] || "";
+}
+
 async function geocode(address: string) {
-  try {
-    const url =
-      `https://nominatim.openstreetmap.org/search?` +
-      `q=${encodeURIComponent(address)}` +
-      `&format=json&limit=1`;
+  const url =
+    `https://nominatim.openstreetmap.org/search?` +
+    `q=${encodeURIComponent(address)}` +
+    `&format=json&limit=1`;
 
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "TrouveUnPlex"
-      }
-    });
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "TrouveUnPlex/1.0",
+    },
+  });
 
-    const data = await res.json();
+  const data = await res.json();
 
-    if (data.length === 0) return null;
-
-    return {
-      lat: Number(data[0].lat),
-      lng: Number(data[0].lon),
-    };
-  } catch {
+  if (!Array.isArray(data) || data.length === 0) {
     return null;
   }
+
+  return {
+    lat: Number(data[0].lat),
+    lng: Number(data[0].lon),
+  };
 }
 
 export async function GET() {
-  const filePath = path.join(
-    process.cwd(),
-    "data",
-    "ancienne_lorette.xlsx"
-  );
+  try {
+    const filePath = path.join(
+      process.cwd(),
+      "data",
+      "ancienne_lorette.xlsx"
+    );
 
-  const workbook = XLSX.readFile(filePath);
-  const sheet =
-    workbook.Sheets[workbook.SheetNames[0]];
+    const workbook = XLSX.readFile(filePath);
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows: any[] = XLSX.utils.sheet_to_json(sheet);
 
-  const rows: any[] =
-    XLSX.utils.sheet_to_json(sheet);
+    const proprietes = [];
 
-  const proprietes = [];
+    for (const row of rows.slice(0, 50)) {
+      const no = row["No civique"];
+      const typeVoie = convertirTypeVoie(row["Type voie"]);
+      const rue = row["Nom rue"];
 
-  for (const row of rows.slice(0, 300)) {
-    const adresse = `${row["No civique"]} ${row["Type voie"]} ${row["Nom rue"]}, L'Ancienne-Lorette, QC`;
+      if (!no || !rue) continue;
 
-    const coords = await geocode(adresse);
+      const adresse = `${no} ${typeVoie} ${rue}, L'Ancienne-Lorette, Québec, Canada`;
 
-    if (!coords) continue;
+      const coords = await geocode(adresse);
 
-    proprietes.push({
-      adresse,
-      typeLogement: row["RL0311A"],
-      evaluation: row["RL0404A"],
-      hypothèque: null,
-      dateDernierProprio: row["RL0201Gx"],
-      anneeConstruction: row["RL0307A"],
-      lat: coords.lat,
-      lng: coords.lng,
+      if (!coords) {
+        console.log("Adresse non trouvée:", adresse);
+        continue;
+      }
+
+      proprietes.push({
+        adresse,
+        typeLogement: row["RL0311A"],
+        evaluation: row["RL0404A"],
+        hypotheque: null,
+        dateDernierProprio: row["RL0201Gx"],
+        anneeConstruction: row["RL0307A"],
+        lat: coords.lat,
+        lng: coords.lng,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 1100));
+    }
+
+    return NextResponse.json({
+      totalExcel: rows.length,
+      totalAvecCoordonnees: proprietes.length,
+      proprietes,
     });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Erreur dans /api/proprietes",
+        detail: String(error),
+      },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json(proprietes);
 }
