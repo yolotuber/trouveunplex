@@ -32,7 +32,7 @@ export default function MapClient() {
   useEffect(() => {
     fetch("/api/proprietes")
       .then((res) => res.json())
-      .then((json) => setData(json))
+      .then((json) => setData(json.proprietes || []))
       .catch((err) =>
         console.error(
           "Erreur chargement données:",
