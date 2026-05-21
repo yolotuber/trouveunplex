@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import type { LatLngExpression } from "leaflet";
 import {
   MapContainer,
   TileLayer,
@@ -23,58 +24,85 @@ type Propriete = {
 export default function MapClient() {
   const [data, setData] = useState<Propriete[]>([]);
 
+  const center: LatLngExpression = [
+    46.793,
+    -71.351,
+  ];
+
   useEffect(() => {
     fetch("/api/proprietes")
-      .then((r) => r.json())
-      .then(setData);
+      .then((res) => res.json())
+      .then((json) => setData(json))
+      .catch((err) =>
+        console.error(
+          "Erreur chargement données:",
+          err
+        )
+      );
   }, []);
 
   return (
-    <MapContainer
-      center={[46.793, -71.351]}
-      zoom={13}
+    <div
       style={{
         height: "100vh",
         width: "100%",
       }}
     >
-      <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <MapContainer
+        center={center}
+        zoom={13}
+        style={{
+          height: "100%",
+          width: "100%",
+        }}
+      >
+        <TileLayer
+          attribution='&copy; OpenStreetMap contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
 
-      {data.map((p, i) => (
-        <Marker
-          key={i}
-          position={[p.lat, p.lng]}
-        >
-          <Popup>
-            <strong>{p.adresse}</strong>
+        {data.map((p, index) => (
+          <Marker
+            key={index}
+            position={[p.lat, p.lng]}
+          >
+            <Popup>
+              <div>
+                <strong>
+                  {p.adresse}
+                </strong>
 
-            <br />
-            Type : {p.typeLogement}
+                <br />
+                <strong>Type :</strong>{" "}
+                {p.typeLogement}
 
-            <br />
-            Évaluation :
-            {" "}
-            {p.evaluation?.toLocaleString(
-              "fr-CA"
-            )}
-            $
+                <br />
+                <strong>
+                  Évaluation :
+                </strong>{" "}
+                {p.evaluation?.toLocaleString(
+                  "fr-CA"
+                )}{" "}
+                $
 
-            <br />
-            Année :
-            {" "}
-            {p.anneeConstruction}
+                <br />
+                <strong>
+                  Année construction :
+                </strong>{" "}
+                {p.anneeConstruction}
 
-            <br />
-            Dernier proprio :
-            {" "}
-            {String(
-              p.dateDernierProprio
-            )}
-          </Popup>
-        </Marker>
-      ))}
-    </MapContainer>
+                <br />
+                <strong>
+                  Dernier proprio :
+                </strong>{" "}
+                {String(
+                  p.dateDernierProprio
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
+      </MapContainer>
+    </div>
   );
 }
