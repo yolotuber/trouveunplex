@@ -1,7 +1,14 @@
+import dynamic from "next/dynamic";
+
+const MapClient = dynamic(
+  () => import("./components/MapClient"),
+  { ssr: false }
+);
+
 export default function Home() {
   return (
     <main>
-      Trouve un plex
+      <MapClient />
     </main>
   );
 }
