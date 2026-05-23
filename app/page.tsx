@@ -1,9 +1,5 @@
-import dynamic from "next/dynamic";
-
-const MapClient = dynamic(() => import("./MapClient"), {
-  ssr: false,
-});
+import MapWrapper from "./MapWrapper";
 
 export default function Home() {
-  return <MapClient />;
+  return <MapWrapper />;
 }
